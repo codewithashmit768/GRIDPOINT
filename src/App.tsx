@@ -3,8 +3,15 @@ import { ControlPanel } from './components/ControlPanel.tsx';
 import type { OptimizationParams as ControlPanelParams } from './components/ControlPanel.tsx';
 import { DataInput } from './components/DataInput.tsx';
 import { MapView } from './components/MapView.tsx';
+import { CostChart } from './components/CostChart.tsx';
+import type { CostHistoryPoint } from './components/CostChart.tsx';
+import {
+  BeforeAfterToggle,
+  type ViewMode,
+} from './components/BeforeAfterToggle.tsx';
 import { optimizeWarehouses } from './lib/optimization.ts';
 import type { OptimizationResult } from './lib/optimization.ts';
+import { haversineDistance } from './lib/haversine.ts';
 import type {
   Neighborhood,
   OptimizationParams as EngineParams,
@@ -19,6 +26,34 @@ const DEFAULT_CONTROL_PARAMS: ControlPanelParams = {
   warehouseCapacity: 400,
 };
 
+function computeOriginalCost(neighborhoods: Neighborhood[]): number {
+  if (neighborhoods.length === 0) return 0;
+
+  let totalOrders = 0;
+  let lat = 0;
+  let lng = 0;
+  for (const n of neighborhoods) {
+    totalOrders += n.orders;
+    lat += n.lat * n.orders;
+    lng += n.lng * n.orders;
+  }
+
+  const center =
+    totalOrders <= 0
+      ? {
+          lat: neighborhoods.reduce((sum, n) => sum + n.lat, 0) / neighborhoods.length,
+          lng: neighborhoods.reduce((sum, n) => sum + n.lng, 0) / neighborhoods.length,
+        }
+      : { lat: lat / totalOrders, lng: lng / totalOrders };
+
+  let cost = 0;
+  for (const n of neighborhoods) {
+    cost +=
+      n.orders * haversineDistance(n.lat, n.lng, center.lat, center.lng);
+  }
+  return cost;
+}
+
 export default function App() {
   const [neighborhoods, setNeighborhoods] =
     useState<Neighborhood[]>(sampleNeighborhoods);
@@ -27,6 +62,11 @@ export default function App() {
   );
   const [result, setResult] = useState<OptimizationResult | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [costHistory, setCostHistory] = useState<CostHistoryPoint[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('optimized');
+  const [originalCost, setOriginalCost] = useState(() =>
+    computeOriginalCost(sampleNeighborhoods),
+  );
 
   const maxK = Math.max(1, neighborhoods.length - 1);
 
@@ -35,6 +75,10 @@ export default function App() {
       current.k > maxK ? { ...current, k: maxK } : current,
     );
   }, [maxK]);
+
+  useEffect(() => {
+    setOriginalCost(computeOriginalCost(neighborhoods));
+  }, [neighborhoods]);
 
   function handleOptimize() {
     setIsOptimizing(true);
@@ -46,7 +90,17 @@ export default function App() {
         demandGrowthPercent: controlParams.demandGrowthPercent,
         capacityPerWarehouse: controlParams.warehouseCapacity,
       };
-      setResult(optimizeWarehouses(neighborhoods, engineParams));
+
+      const history: CostHistoryPoint[] = [];
+      let selected: OptimizationResult | null = null;
+      for (let k = 1; k <= engineParams.k; k++) {
+        const next = optimizeWarehouses(neighborhoods, { ...engineParams, k });
+        history.push({ k, totalCost: next.totalCost });
+        if (k === engineParams.k) selected = next;
+      }
+
+      setCostHistory(history);
+      setResult(selected);
       setIsOptimizing(false);
     }, 50);
   }
@@ -114,12 +168,41 @@ export default function App() {
           />
         </aside>
 
-        <section className="min-h-0 min-w-0 flex-1">
-          <div className="h-full min-h-[500px] overflow-hidden rounded-xl border border-slate-800">
-            <MapView
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+          <div className="relative flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-slate-800">
+            <div className="flex justify-end bg-slate-900/80 px-3 py-2 md:hidden">
+              <BeforeAfterToggle viewMode={viewMode} setViewMode={setViewMode} />
+            </div>
+            <div className="relative min-h-0 flex-1">
+              <MapView
+                neighborhoods={neighborhoods}
+                result={result}
+                maxRadiusKm={controlParams.maxRadiusKm}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                originalCost={originalCost}
+                currentOptimizedCost={result ? result.totalCost : null}
+              />
+            </div>
+          </div>
+
+          <div className="shrink-0 rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-md">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h3 className="text-xs font-semibold tracking-wide text-indigo-400 uppercase">
+                Cost vs warehouses
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCostHistory([])}
+                className="rounded border border-slate-700 px-2.5 py-1 text-[11px] text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+              >
+                Reset Cost Chart
+              </button>
+            </div>
+            <CostChart
               neighborhoods={neighborhoods}
-              result={result}
-              maxRadiusKm={controlParams.maxRadiusKm}
+              numberOfWarehouses={controlParams.k}
+              costHistory={costHistory}
             />
           </div>
         </section>
