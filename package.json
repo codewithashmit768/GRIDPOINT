@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "sanity": "npx tsx src/lib/sanityCheck.ts",
+    "tradeoff": "npx tsx src/lib/tradeoffSanity.ts",
     "preview": "vite preview"
   },
   "dependencies": {
