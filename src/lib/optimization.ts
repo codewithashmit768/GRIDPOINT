@@ -8,6 +8,8 @@ import type {
 
 const MAX_LLOYD_ITERATIONS = 50;
 const MAX_CAPACITY_PASSES = 50;
+/** k-means++ is random — keep the best of several seeded full runs. */
+const RESTARTS = 20;
 
 interface LatLng {
   lat: number;
@@ -23,11 +25,14 @@ interface LatLng {
  *   3. Lloyd iteration: nearest-warehouse assign → order-weighted centroid
  *   4. Capacity pass: overflow the farthest neighborhoods to the next warehouse with room
  *   5. Radius pass: neighborhoods beyond maxRadiusKm become unserved
- *   6. Cost vs. a naive single-warehouse baseline at the unweighted centroid
+ *   6. Repeat 4–5 so capacity freed by unserved neighborhoods can take leftover overflow
+ *   7. Cost vs. a naive single-warehouse baseline at the unweighted centroid
+ *   8. Restart 2–6 several times and keep the lowest totalCost
  */
 export function optimizeWarehouses(
   neighborhoods: Neighborhood[],
   params: OptimizationParams,
+  restartCount: number = RESTARTS,
 ): OptimizationResult {
   if (neighborhoods.length === 0) {
     return {
@@ -57,34 +62,78 @@ export function optimizeWarehouses(
   }
 
   const totalDemand = scaled.reduce((sum, n) => sum + n.orders, 0);
-  // Fair share of total demand — not on OptimizationParams, so implied by k.
+  // Manual cap wins when provided; otherwise each warehouse's fair share.
   // Neighborhoods are not split, so a warehouse can still sit slightly over
   // this cap if its remaining overflow is larger than anyone else's leftover room.
-  const capacity = totalDemand / k;
+  const capacity =
+    params.capacityPerWarehouse !== undefined
+      ? params.capacityPerWarehouse
+      : totalDemand / k;
 
-  const centers = seedKMeansPlusPlus(scaled, k);
+  const seed = hashSeed(scaled, params, capacity);
+  const attempts = Math.max(1, Math.floor(restartCount));
+  let best = runOnce(scaled, k, capacity, params, baselineCost, mulberry32(seed));
+  for (let i = 1; i < attempts; i++) {
+    const next = runOnce(
+      scaled,
+      k,
+      capacity,
+      params,
+      baselineCost,
+      mulberry32(seed + i * 0x9e3779b9),
+    );
+    if (next.totalCost < best.totalCost) {
+      best = next;
+    }
+  }
+  return best;
+}
+
+function runOnce(
+  scaled: Neighborhood[],
+  k: number,
+  capacity: number,
+  params: OptimizationParams,
+  baselineCost: number,
+  rng: () => number,
+): OptimizationResult {
+  const centers = seedKMeansPlusPlus(scaled, k, rng);
   const assignments = runLloyd(scaled, centers);
-
   const warehouses = buildWarehouses(scaled, centers, assignments, capacity);
-  applyCapacityPass(warehouses, scaled);
-  const unservedNeighborhoodIds = applyRadiusPass(
+  const unservedNeighborhoodIds = applyCapacityAndRadius(
     warehouses,
     scaled,
     params.maxRadiusKm,
   );
-
   const byId = new Map(scaled.map((n) => [n.id, n]));
-  const totalCost = computeServedCost(
-    warehouses,
-    byId,
-    params.fuelCostPerKm,
-  );
+  const totalCost = computeServedCost(warehouses, byId, params.fuelCostPerKm);
 
   return {
     warehouses,
     unservedNeighborhoodIds,
     totalCost,
     baselineCost,
+  };
+}
+
+/**
+ * Naive "before" state for the map: one warehouse at the unweighted centroid,
+ * with every neighborhood assigned. Load (sum of assigned orders) equals
+ * total demand; capacity is set to the same so the baseline can serve everyone.
+ */
+export function getBaselineWarehouse(neighborhoods: Neighborhood[]): Warehouse {
+  const totalDemand = neighborhoods.reduce((sum, n) => sum + n.orders, 0);
+  const centroid =
+    neighborhoods.length === 0
+      ? { lat: 0, lng: 0 }
+      : unweightedCentroid(neighborhoods);
+
+  return {
+    id: 'wh-baseline',
+    lat: centroid.lat,
+    lng: centroid.lng,
+    capacity: totalDemand,
+    assignedNeighborhoodIds: neighborhoods.map((n) => n.id),
   };
 }
 
@@ -135,6 +184,44 @@ function orderWeightedCentroid(points: Neighborhood[]): LatLng {
 }
 
 /**
+ * FNV-1a-ish mix so the same neighborhoods + params always produce the same
+ * 8 restart seeds (clicking Optimize twice should not jump the warehouses).
+ */
+function hashSeed(
+  neighborhoods: Neighborhood[],
+  params: OptimizationParams,
+  capacity: number,
+): number {
+  let h = 2166136261;
+  const mix = (x: number) => {
+    h ^= x >>> 0;
+    h = Math.imul(h, 16777619);
+  };
+  for (const n of neighborhoods) {
+    mix(Math.round(n.lat * 1e5));
+    mix(Math.round(n.lng * 1e5));
+    mix(Math.round(n.orders * 1e3));
+    for (let i = 0; i < n.id.length; i++) mix(n.id.charCodeAt(i));
+  }
+  mix(params.k);
+  mix(Math.round(params.maxRadiusKm * 1e3));
+  mix(Math.round(params.fuelCostPerKm * 1e3));
+  mix(Math.round(params.demandGrowthPercent * 1e3));
+  mix(Math.round(capacity * 1e3));
+  return h >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
  * k-means++ seeding: first center uniform-random, each next center sampled
  * with probability proportional to squared distance to the nearest existing
  * center. That spreads warehouses out instead of stacking them in one cluster.
@@ -142,8 +229,9 @@ function orderWeightedCentroid(points: Neighborhood[]): LatLng {
 function seedKMeansPlusPlus(
   neighborhoods: Neighborhood[],
   k: number,
+  rng: () => number,
 ): LatLng[] {
-  const first = neighborhoods[Math.floor(Math.random() * neighborhoods.length)];
+  const first = neighborhoods[Math.floor(rng() * neighborhoods.length)];
   const centers: LatLng[] = [{ lat: first.lat, lng: first.lng }];
 
   while (centers.length < k) {
@@ -151,7 +239,7 @@ function seedKMeansPlusPlus(
       const nearest = minDistanceToCenters(n, centers);
       return nearest * nearest;
     });
-    const picked = sampleByWeight(neighborhoods, weights);
+    const picked = sampleByWeight(neighborhoods, weights, rng);
     centers.push({ lat: picked.lat, lng: picked.lng });
   }
 
@@ -170,13 +258,14 @@ function minDistanceToCenters(point: LatLng, centers: LatLng[]): number {
 function sampleByWeight(
   neighborhoods: Neighborhood[],
   weights: number[],
+  rng: () => number,
 ): Neighborhood {
   const total = weights.reduce((sum, w) => sum + w, 0);
   if (total <= 0) {
-    return neighborhoods[Math.floor(Math.random() * neighborhoods.length)];
+    return neighborhoods[Math.floor(rng() * neighborhoods.length)];
   }
 
-  let r = Math.random() * total;
+  let r = rng() * total;
   for (let i = 0; i < neighborhoods.length; i++) {
     r -= weights[i];
     if (r <= 0) return neighborhoods[i];
@@ -316,6 +405,36 @@ function applyCapacityPass(
 
     if (!moved) break;
   }
+}
+
+/**
+ * Capacity then radius, repeating so holes left by unserved neighborhoods
+ * can absorb leftover overflow. Radius can free capacity after the first
+ * pass; without a second capacity pass those holes stay empty while another
+ * warehouse remains over cap.
+ */
+function applyCapacityAndRadius(
+  warehouses: Warehouse[],
+  neighborhoods: Neighborhood[],
+  maxRadiusKm: number,
+): string[] {
+  const unserved = new Set<string>();
+  let previous = '';
+
+  for (let i = 0; i < MAX_CAPACITY_PASSES; i++) {
+    applyCapacityPass(warehouses, neighborhoods);
+    for (const id of applyRadiusPass(warehouses, neighborhoods, maxRadiusKm)) {
+      unserved.add(id);
+    }
+
+    const snapshot = warehouses
+      .map((w) => `${w.id}:${w.assignedNeighborhoodIds.join(',')}`)
+      .join('|');
+    if (snapshot === previous) break;
+    previous = snapshot;
+  }
+
+  return [...unserved];
 }
 
 function assignedSortedFarthestFirst(

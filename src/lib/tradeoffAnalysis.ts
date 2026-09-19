@@ -1,9 +1,5 @@
 import { optimizeWarehouses } from './optimization.ts';
-import type {
-  Neighborhood,
-  OptimizationParams,
-  OptimizationResult,
-} from '../types.ts';
+import type { Neighborhood } from '../types.ts';
 
 export type CostVsKPoint = {
   k: number;
@@ -17,26 +13,9 @@ export type DemandGrowthPoint = {
   unservedCount: number;
 };
 
-/** k-means++ is random — a few restarts keep the chart from one unlucky seed. */
-const RESTARTS = 8;
-
-function bestOptimize(
-  neighborhoods: Neighborhood[],
-  params: OptimizationParams,
-): OptimizationResult {
-  let best = optimizeWarehouses(neighborhoods, params);
-  for (let i = 1; i < RESTARTS; i++) {
-    const next = optimizeWarehouses(neighborhoods, params);
-    if (next.totalCost < best.totalCost) {
-      best = next;
-    }
-  }
-  return best;
-}
-
 /**
  * Sweep k from 1..maxK at current demand (growth = 0).
- * CostChart can plot this directly. Each k keeps the best of a few random restarts.
+ * optimizeWarehouses already keeps the best of several random restarts.
  */
 export function generateCostVsKData(
   neighborhoods: Neighborhood[],
@@ -48,7 +27,7 @@ export function generateCostVsKData(
   const points: CostVsKPoint[] = [];
 
   for (let k = 1; k <= lastK; k++) {
-    const result = bestOptimize(neighborhoods, {
+    const result = optimizeWarehouses(neighborhoods, {
       k,
       maxRadiusKm,
       fuelCostPerKm,
@@ -76,7 +55,7 @@ export function generateDemandGrowthData(
   growthSteps: number[],
 ): DemandGrowthPoint[] {
   return growthSteps.map((growthPercent) => {
-    const result = bestOptimize(neighborhoods, {
+    const result = optimizeWarehouses(neighborhoods, {
       k,
       maxRadiusKm,
       fuelCostPerKm,

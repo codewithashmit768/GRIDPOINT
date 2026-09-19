@@ -26,4 +26,5 @@ export interface OptimizationParams {
   maxRadiusKm: number;
   fuelCostPerKm: number;
   demandGrowthPercent: number; // 0 = current demand, 50 = +50% orders
+  capacityPerWarehouse?: number; // hard cap for every warehouse; omit for totalDemand / k
 }
