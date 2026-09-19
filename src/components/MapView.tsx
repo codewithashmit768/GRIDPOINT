@@ -2,7 +2,7 @@ import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Neighborhood, OptimizationResult } from '../types';
+import type { Neighborhood, OptimizationResult } from '../types';
 
 const CLUSTER_COLORS = [
   '#2563eb', '#dc2626', '#16a34a', '#d97706',

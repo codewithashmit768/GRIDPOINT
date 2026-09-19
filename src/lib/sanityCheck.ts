@@ -1,5 +1,5 @@
 import { haversineDistance } from './haversine.ts';
-import { optimizeWarehouses } from './optimization.ts';
+import { getBaselineWarehouse, optimizeWarehouses } from './optimization.ts';
 import type { Neighborhood, OptimizationParams } from '../types.ts';
 
 /**
@@ -54,7 +54,9 @@ export function runSanityCheck(): void {
     demandGrowthPercent: 0,
   };
 
+  console.time('optimizeWarehouses');
   const result = optimizeWarehouses(SAMPLE_NEIGHBORHOODS, params);
+  console.timeEnd('optimizeWarehouses');
   const demandMultiplier = 1 + params.demandGrowthPercent / 100;
   const allIds = SAMPLE_NEIGHBORHOODS.map((n) => n.id);
   const assigned = result.warehouses.flatMap((w) => w.assignedNeighborhoodIds);
@@ -160,6 +162,105 @@ export function runSanityCheck(): void {
     'k=1 cost is close to baseline (same idea, weighted vs unweighted center)',
     Math.abs(one.totalCost - one.baselineCost) / one.baselineCost < 0.15,
     `opt ${one.totalCost.toFixed(0)} vs baseline ${one.baselineCost.toFixed(0)}`,
+  );
+
+  const totalDemand = SAMPLE_NEIGHBORHOODS.reduce((sum, n) => sum + n.orders, 0);
+  const autoCapacity = totalDemand / params.k;
+  check(
+    'omitted capacityPerWarehouse uses totalDemand / k',
+    result.warehouses.every((w) => Math.abs(w.capacity - autoCapacity) < 1e-9),
+    `default cap ${autoCapacity.toFixed(0)}`,
+  );
+
+  const manualCap = 250;
+  const capped = optimizeWarehouses(SAMPLE_NEIGHBORHOODS, {
+    ...params,
+    capacityPerWarehouse: manualCap,
+  });
+  check(
+    'capacityPerWarehouse override is stored on every warehouse',
+    capped.warehouses.length === params.k &&
+      capped.warehouses.every((w) => w.capacity === manualCap),
+    `cap ${manualCap} (auto would be ${autoCapacity.toFixed(0)})`,
+  );
+
+  let manualCapHonored = true;
+  for (const w of capped.warehouses) {
+    const load = loadOf(w.assignedNeighborhoodIds, SAMPLE_NEIGHBORHOODS, 1);
+    if (load <= w.capacity + 1e-6) continue;
+    const canRelocate = w.assignedNeighborhoodIds.some((id) => {
+      const n = byId.get(id);
+      if (!n) return false;
+      return capped.warehouses.some((other) => {
+        if (other.id === w.id) return false;
+        const otherLoad = loadOf(other.assignedNeighborhoodIds, SAMPLE_NEIGHBORHOODS, 1);
+        return other.capacity - otherLoad + 1e-6 >= n.orders;
+      });
+    });
+    if (canRelocate) manualCapHonored = false;
+  }
+  check(
+    'manual cap is enforced when another warehouse still has room',
+    manualCapHonored,
+  );
+
+  const baseline = getBaselineWarehouse(SAMPLE_NEIGHBORHOODS);
+  const expectedLat =
+    SAMPLE_NEIGHBORHOODS.reduce((sum, n) => sum + n.lat, 0) /
+    SAMPLE_NEIGHBORHOODS.length;
+  const expectedLng =
+    SAMPLE_NEIGHBORHOODS.reduce((sum, n) => sum + n.lng, 0) /
+    SAMPLE_NEIGHBORHOODS.length;
+  const baselineLoad = loadOf(baseline.assignedNeighborhoodIds, SAMPLE_NEIGHBORHOODS, 1);
+  const baselineIds = [...baseline.assignedNeighborhoodIds].sort();
+  const sampleIds = [...allIds].sort();
+
+  check(
+    'getBaselineWarehouse sits at the unweighted centroid',
+    Math.abs(baseline.lat - expectedLat) < 1e-9 &&
+      Math.abs(baseline.lng - expectedLng) < 1e-9,
+    `${baseline.lat.toFixed(4)}, ${baseline.lng.toFixed(4)}`,
+  );
+  check(
+    'getBaselineWarehouse assigns every neighborhood once',
+    baselineIds.length === sampleIds.length &&
+      baselineIds.every((id, i) => id === sampleIds[i]),
+  );
+  check(
+    'getBaselineWarehouse load equals total demand',
+    Math.abs(baselineLoad - totalDemand) < 1e-9 &&
+      Math.abs(baseline.capacity - totalDemand) < 1e-9,
+    `load ${baselineLoad} / cap ${baseline.capacity}`,
+  );
+
+  const repeatCosts = Array.from(
+    { length: 5 },
+    () => optimizeWarehouses(SAMPLE_NEIGHBORHOODS, params).totalCost,
+  );
+  const minCost = Math.min(...repeatCosts);
+  const maxCost = Math.max(...repeatCosts);
+  const spread = maxCost - minCost;
+  const allowed = Math.max(1e-6, minCost * 0.001);
+  check(
+    'restarts make totalCost stable across calls (within 0.1%)',
+    spread <= allowed,
+    `spread ${spread.toFixed(2)} over ${repeatCosts.map((c) => c.toFixed(0)).join(', ')}`,
+  );
+
+  const probeTarget = 74904.61;
+  check(
+    '20-restart default matches or beats the 40-restart probe',
+    result.totalCost <= probeTarget + 0.05,
+    `${result.totalCost.toFixed(2)} vs ${probeTarget.toFixed(2)}`,
+  );
+
+  const cost20 = result.totalCost;
+  const cost40 = optimizeWarehouses(SAMPLE_NEIGHBORHOODS, params, 40).totalCost;
+  console.log('\nRestart probe (production default is now 20):');
+  console.log(`  20 restarts: ${cost20.toFixed(2)}`);
+  console.log(`  40 restarts: ${cost40.toFixed(2)}`);
+  console.log(
+    `  delta:       ${(cost20 - cost40).toFixed(2)} (positive = 40 found a cheaper clustering)`,
   );
 
   console.log('\n--- done ---');
