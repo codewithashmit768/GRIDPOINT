@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { sampleNeighborhoods } from './data/sampleNeighborhoods.ts';
 import { optimizeWarehouses } from './lib/optimization.ts';
+import TestMap from './TestMap.tsx';
 import type {
   Neighborhood,
   OptimizationParams,
@@ -150,6 +151,8 @@ export default function App() {
           Click Optimize to run the algorithm.
         </p>
       )}
+
+      <TestMap />
     </main>
   );
 }
