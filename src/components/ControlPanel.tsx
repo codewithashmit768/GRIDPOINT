@@ -13,6 +13,7 @@ interface ControlPanelProps {
   onChangeParams: (updated: OptimizationParams) => void;
   onOptimize: () => void;
   isOptimizing?: boolean;
+  maxK?: number;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -20,6 +21,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onChangeParams,
   onOptimize,
   isOptimizing = false,
+  maxK = 8,
 }) => {
   const updateField = <K extends keyof OptimizationParams>(
     key: K,
@@ -52,12 +54,18 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           <input
             type="range"
             min="1"
-            max="8"
+            max={maxK}
             step="1"
-            value={params.k}
+            value={Math.min(params.k, maxK)}
             onChange={(e) => updateField('k', parseInt(e.target.value, 10))}
             className="w-full accent-indigo-500 cursor-pointer"
           />
+          {maxK < 3 && (
+            <p className="mt-1.5 text-[11px] leading-snug text-amber-400/90">
+              Few neighborhoods loaded — results may be less meaningful with
+              fewer than 4 sites.
+            </p>
+          )}
         </div>
 
         {/* Warehouse Capacity Limit */}

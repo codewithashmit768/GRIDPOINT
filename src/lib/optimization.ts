@@ -6,6 +6,8 @@ import type {
   Warehouse,
 } from '../types.ts';
 
+export type { OptimizationResult };
+
 const MAX_LLOYD_ITERATIONS = 50;
 const MAX_CAPACITY_PASSES = 50;
 /** k-means++ is random — keep the best of several seeded full runs. */

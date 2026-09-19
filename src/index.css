@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Tailwind Preflight sets img { max-width: 100% }, which collapses Leaflet tiles. */
+.leaflet-container img {
+  max-width: none;
+}
