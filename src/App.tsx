@@ -9,9 +9,11 @@ import {
   BeforeAfterToggle,
   type ViewMode,
 } from './components/BeforeAfterToggle.tsx';
-import { optimizeWarehouses } from './lib/optimization.ts';
+import {
+  getBaselineCost,
+  optimizeWarehouses,
+} from './lib/optimization.ts';
 import type { OptimizationResult } from './lib/optimization.ts';
-import { haversineDistance } from './lib/haversine.ts';
 import type {
   Neighborhood,
   OptimizationParams as EngineParams,
@@ -26,34 +28,6 @@ const DEFAULT_CONTROL_PARAMS: ControlPanelParams = {
   warehouseCapacity: 400,
 };
 
-function computeOriginalCost(neighborhoods: Neighborhood[]): number {
-  if (neighborhoods.length === 0) return 0;
-
-  let totalOrders = 0;
-  let lat = 0;
-  let lng = 0;
-  for (const n of neighborhoods) {
-    totalOrders += n.orders;
-    lat += n.lat * n.orders;
-    lng += n.lng * n.orders;
-  }
-
-  const center =
-    totalOrders <= 0
-      ? {
-          lat: neighborhoods.reduce((sum, n) => sum + n.lat, 0) / neighborhoods.length,
-          lng: neighborhoods.reduce((sum, n) => sum + n.lng, 0) / neighborhoods.length,
-        }
-      : { lat: lat / totalOrders, lng: lng / totalOrders };
-
-  let cost = 0;
-  for (const n of neighborhoods) {
-    cost +=
-      n.orders * haversineDistance(n.lat, n.lng, center.lat, center.lng);
-  }
-  return cost;
-}
-
 export default function App() {
   const [neighborhoods, setNeighborhoods] =
     useState<Neighborhood[]>(sampleNeighborhoods);
@@ -65,7 +39,11 @@ export default function App() {
   const [costHistory, setCostHistory] = useState<CostHistoryPoint[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('optimized');
   const [originalCost, setOriginalCost] = useState(() =>
-    computeOriginalCost(sampleNeighborhoods),
+    getBaselineCost(
+      sampleNeighborhoods,
+      DEFAULT_CONTROL_PARAMS.demandGrowthPercent,
+      DEFAULT_CONTROL_PARAMS.fuelCostPerKm,
+    ),
   );
 
   const maxK = Math.max(1, neighborhoods.length - 1);
@@ -77,8 +55,23 @@ export default function App() {
   }, [maxK]);
 
   useEffect(() => {
-    setOriginalCost(computeOriginalCost(neighborhoods));
-  }, [neighborhoods]);
+    if (result) {
+      setOriginalCost(result.baselineCost);
+      return;
+    }
+    setOriginalCost(
+      getBaselineCost(
+        neighborhoods,
+        controlParams.demandGrowthPercent,
+        controlParams.fuelCostPerKm,
+      ),
+    );
+  }, [
+    result,
+    neighborhoods,
+    controlParams.demandGrowthPercent,
+    controlParams.fuelCostPerKm,
+  ]);
 
   function handleOptimize() {
     setIsOptimizing(true);
@@ -101,6 +94,15 @@ export default function App() {
 
       setCostHistory(history);
       setResult(selected);
+      setOriginalCost(
+        selected
+          ? selected.baselineCost
+          : getBaselineCost(
+              neighborhoods,
+              engineParams.demandGrowthPercent,
+              engineParams.fuelCostPerKm,
+            ),
+      );
       setIsOptimizing(false);
     }, 50);
   }

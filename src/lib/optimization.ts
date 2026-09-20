@@ -45,13 +45,11 @@ export function optimizeWarehouses(
     };
   }
 
-  const demandMultiplier = 1 + params.demandGrowthPercent / 100;
-  const scaled: Neighborhood[] = neighborhoods.map((n) => ({
-    ...n,
-    orders: n.orders * demandMultiplier,
-  }));
-
-  const baselineCost = computeBaselineCost(scaled, params.fuelCostPerKm);
+  const scaled = scaleNeighborhoodDemand(
+    neighborhoods,
+    params.demandGrowthPercent,
+  );
+  const baselineCost = baselineCostOf(scaled, params.fuelCostPerKm);
 
   const k = Math.max(0, Math.min(Math.floor(params.k), scaled.length));
   if (k === 0) {
@@ -139,20 +137,42 @@ export function getBaselineWarehouse(neighborhoods: Neighborhood[]): Warehouse {
   };
 }
 
-/** Single warehouse at the unweighted geographic center of every neighborhood. */
-function computeBaselineCost(
+/** Scale orders by demandGrowthPercent (0 = unchanged, 50 = 1.5×). */
+function scaleNeighborhoodDemand(
+  neighborhoods: Neighborhood[],
+  demandGrowthPercent: number,
+): Neighborhood[] {
+  const demandMultiplier = 1 + demandGrowthPercent / 100;
+  return neighborhoods.map((n) => ({
+    ...n,
+    orders: n.orders * demandMultiplier,
+  }));
+}
+
+/**
+ * Growth-scaled cost of the naive single-warehouse baseline.
+ * Same value optimizeWarehouses stores on result.baselineCost.
+ */
+export function getBaselineCost(
+  neighborhoods: Neighborhood[],
+  demandGrowthPercent: number,
+  fuelCostPerKm: number,
+): number {
+  return baselineCostOf(
+    scaleNeighborhoodDemand(neighborhoods, demandGrowthPercent),
+    fuelCostPerKm,
+  );
+}
+
+/** Cost of serving every neighborhood from getBaselineWarehouse. */
+function baselineCostOf(
   neighborhoods: Neighborhood[],
   fuelCostPerKm: number,
 ): number {
-  const centroid = unweightedCentroid(neighborhoods);
-  let cost = 0;
-  for (const n of neighborhoods) {
-    cost +=
-      n.orders *
-      haversineDistance(n.lat, n.lng, centroid.lat, centroid.lng) *
-      fuelCostPerKm;
-  }
-  return cost;
+  if (neighborhoods.length === 0) return 0;
+  const warehouse = getBaselineWarehouse(neighborhoods);
+  const byId = new Map(neighborhoods.map((n) => [n.id, n]));
+  return computeServedCost([warehouse], byId, fuelCostPerKm);
 }
 
 function unweightedCentroid(points: LatLng[]): LatLng {
