@@ -22,8 +22,8 @@ import { sampleNeighborhoods } from './data/sampleNeighborhoods.ts';
 
 const DEFAULT_CONTROL_PARAMS: ControlPanelParams = {
   k: 3,
-  maxRadiusKm: 25,
-  fuelCostPerKm: 1,
+  maxRadiusKm: 35,
+  fuelCostPerKm: 1.2,
   demandGrowthPercent: 0,
   warehouseCapacity: 400,
 };
