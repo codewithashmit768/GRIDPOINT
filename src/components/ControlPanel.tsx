@@ -13,6 +13,7 @@ interface ControlPanelProps {
   onChangeParams: (updated: OptimizationParams) => void;
   onOptimize: () => void;
   isOptimizing?: boolean;
+  maxK: number;
 }
 
 type VehicleType = 'ev' | 'diesel' | 'freight' | 'custom';
@@ -58,6 +59,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onChangeParams,
   onOptimize,
   isOptimizing = false,
+  maxK,
 }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>('diesel');
 
@@ -139,7 +141,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           <input
             type="range"
             min="1"
-            max="8"
+            max={maxK}
             step="1"
             value={params.k}
             onChange={(e) => updateField('k', parseInt(e.target.value, 10))}
