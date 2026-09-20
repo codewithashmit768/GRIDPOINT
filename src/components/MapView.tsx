@@ -21,6 +21,7 @@ interface Props {
   setViewMode: (mode: ViewMode) => void;
   originalCost: number;
   currentOptimizedCost: number | null;
+  isStale: boolean;
 }
 
 const warehouseIcon = new L.DivIcon({
@@ -84,6 +85,7 @@ export const MapView: React.FC<Props> = ({
   setViewMode,
   originalCost,
   currentOptimizedCost,
+  isStale,
 }) => {
   const centerLat = neighborhoods.length ? neighborhoods[0].lat : 12.9716;
   const centerLng = neighborhoods.length ? neighborhoods[0].lng : 77.5946;
@@ -101,8 +103,15 @@ export const MapView: React.FC<Props> = ({
   return (
     <div className="relative" style={{ width: '100%', height: '100%', minHeight: '500px' }}>
       {badgeLabel && (
-        <div className="pointer-events-none absolute top-3 left-3 z-[1000] rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-1.5 font-mono text-xs text-slate-100 shadow-lg backdrop-blur-sm">
+        <div
+          className={
+            isStale
+              ? 'pointer-events-none absolute top-3 left-3 z-[1000] rounded-lg border border-amber-600/70 bg-amber-950/90 px-3 py-1.5 font-mono text-xs text-amber-100 shadow-lg backdrop-blur-sm'
+              : 'pointer-events-none absolute top-3 left-3 z-[1000] rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-1.5 font-mono text-xs text-slate-100 shadow-lg backdrop-blur-sm'
+          }
+        >
           {badgeLabel}
+          {isStale ? ' (stale)' : ''}
         </div>
       )}
       <div className="absolute top-3 right-3 z-[1100] hidden md:block">

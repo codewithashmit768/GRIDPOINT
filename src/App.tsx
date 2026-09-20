@@ -38,6 +38,7 @@ export default function App() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [costHistory, setCostHistory] = useState<CostHistoryPoint[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('optimized');
+  const [isStale, setIsStale] = useState(false);
   const [originalCost, setOriginalCost] = useState(() =>
     getBaselineCost(
       sampleNeighborhoods,
@@ -103,20 +104,24 @@ export default function App() {
               engineParams.fuelCostPerKm,
             ),
       );
+      setIsStale(false);
       setIsOptimizing(false);
     }, 50);
   }
 
   function handleAddNeighborhood(item: Neighborhood) {
     setNeighborhoods((current) => [...current, item]);
+    if (result) setIsStale(true);
   }
 
   function handleSetNeighborhoods(items: Neighborhood[]) {
     setNeighborhoods(items);
+    if (result) setIsStale(true);
   }
 
   function handleResetDefault() {
     setNeighborhoods([...sampleNeighborhoods]);
+    if (result) setIsStale(true);
   }
 
   const savingsPercent =
@@ -141,6 +146,12 @@ export default function App() {
               <h3 className="text-xs font-semibold tracking-wide text-indigo-400 uppercase">
                 Cost summary
               </h3>
+              {isStale && (
+                <div className="rounded-md border border-amber-700/60 bg-amber-950/50 px-3 py-2 text-xs text-amber-200">
+                  Dataset changed — click Run Optimization to refresh these
+                  numbers
+                </div>
+              )}
               <div className="flex justify-between text-slate-300">
                 <span>Total cost</span>
                 <span className="font-mono text-slate-100">
@@ -184,6 +195,7 @@ export default function App() {
                 setViewMode={setViewMode}
                 originalCost={originalCost}
                 currentOptimizedCost={result ? result.totalCost : null}
+                isStale={isStale}
               />
             </div>
           </div>
@@ -201,11 +213,18 @@ export default function App() {
                 Reset Cost Chart
               </button>
             </div>
-            <CostChart
-              neighborhoods={neighborhoods}
-              numberOfWarehouses={controlParams.k}
-              costHistory={costHistory}
-            />
+            {isStale && (
+              <p className="mb-2 text-[11px] text-amber-300">
+                Dataset changed — chart reflects the previous dataset
+              </p>
+            )}
+            <div className={isStale ? 'opacity-50' : undefined}>
+              <CostChart
+                neighborhoods={neighborhoods}
+                numberOfWarehouses={controlParams.k}
+                costHistory={costHistory}
+              />
+            </div>
           </div>
         </section>
       </div>
