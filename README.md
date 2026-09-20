@@ -4,6 +4,10 @@
 
 GridPoint answers a simple but genuinely hard question: *given a set of neighborhoods with varying daily order volumes, where should a company place its warehouses, and which neighborhoods should each one serve, to minimize total delivery cost?*
 
+## Demo Video
+
+[Watch GridPoint Demo on YouTube](https://youtu.be/KgdHhhlIGj8)
+
 ---
 
 ## The Problem
