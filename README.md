@@ -1,75 +1,62 @@
-# React + TypeScript + Vite
+# GridPoint
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Smart Warehouse Location Optimization Platform
 
-Currently, two official plugins are available:
+GridPoint is a warehouse optimization platform designed to help e-commerce
+businesses determine suitable warehouse locations and assignments for
+different neighborhoods.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Problem
 
-## React Compiler
+An e-commerce company serves multiple neighborhoods with different daily
+order volumes and geographical locations.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+GridPoint helps determine warehouse requirements while minimizing delivery
+cost and considering warehouse capacity.
 
-## Expanding the ESLint configuration
+## Key Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Daily demand input
+- Demand growth simulation
+- Warehouse capacity configuration
+- Required warehouse calculation
+- Recommended warehouse calculation
+- Delivery cost estimation
+- Unused capacity calculation
+- Cost vs number of warehouses visualization
+- Recommended warehouse indicator
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Optimization Logic
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+GridPoint considers:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Daily customer demand
+- Demand growth
+- Warehouse capacity
+- Number of warehouses
+- Delivery cost
 
-```
+The system calculates the minimum number of warehouses required and evaluates
+warehouse configurations to identify a suitable recommendation.
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## Technology Stack
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- React
+- TypeScript
+- Vite
+- Recharts
+- CSS
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## AI Component
 
-```
+[ADD THE ACTUAL AI COMPONENT USED BY THE TEAM HERE]
+
+## Project Structure
+
+```text
+src/
+├── components/
+│   └── CostChart.tsx
+├── App.tsx
+├── App.css
+└── main.tsx
