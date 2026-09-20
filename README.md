@@ -101,6 +101,18 @@ npm run tradeoff
 
 ---
 
+## Quick Start (First Run)
+
+1. Run the app: `npm run dev`
+2. Load sample data: click **"Load Sample Neighborhoods"** to populate 12 neighborhoods around Bengaluru
+3. Set warehouse count: move the **"Warehouses (k)"** slider to 3
+4. Click **"Run Optimization"** — the map will cluster neighborhoods and compute cost
+5. Click **"Original"** toggle to see the naive single-warehouse baseline
+6. Click **"Optimized"** to see the optimized multi-warehouse layout — notice the cost savings
+7. Explore: try k=1, k=4, k=6 and watch the "Cost vs Warehouses" chart show diminishing returns
+
+---
+
 ## Future Work
 
 One idea we explored but didn't merge into the final build, in the interest of not introducing an untested dependency this close to the deadline: an **AI-generated business insights layer**, where the optimization result would be sent to an LLM (Gemini) to produce a short, plain-language explanation of why the recommended warehouse count makes sense, the cost/capacity trade-offs, and what happens as demand grows. We'd like to revisit this with more time, ideally with graceful fallback if the API is unavailable.
