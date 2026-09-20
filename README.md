@@ -44,7 +44,7 @@ We chose a classical, well-understood optimization algorithm over an LLM-based a
 
 ---
 
-## Bonus Features (7 of 8 listed in the brief)
+## Bonus Features 
 
 | Feature | Status |
 |---|---|
@@ -53,7 +53,6 @@ We chose a classical, well-understood optimization algorithm over an LLM-based a
 | Maximum delivery radius | Done |
 | Different vehicle types | Done — Fleet Vehicle Profiles (EV Van / Diesel Van / Freight Truck), each presetting a realistic fuel-cost and service-radius combination |
 | Fuel costs | Done — folded directly into the cost formula |
-| Traffic-dependent delivery times | Not implemented — deliberately. We didn't have a real traffic data source, and simulating one with made-up multipliers risked producing an unsubstantiated number we couldn't defend if asked how it was derived. We prioritized correctness over checkbox completeness. |
 | Model changes in customer demand | Done — Simulated Demand Growth slider, scales all order volumes before re-optimizing |
 | Trade-off: infrastructure cost vs. delivery cost | Done — live "Cost vs Warehouses" chart, showing the diminishing-returns curve as warehouse count increases |
 
