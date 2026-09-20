@@ -40,7 +40,7 @@ We chose a classical, well-understood optimization algorithm over an LLM-based a
 
 ---
 
-## Bonus Features (7 of 8 listed in the brief)
+## Bonus Features 
 
 | Feature | Status |
 |---|---|
