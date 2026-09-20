@@ -155,13 +155,13 @@ export default function App() {
               <div className="flex justify-between text-slate-300">
                 <span>Total cost</span>
                 <span className="font-mono text-slate-100">
-                  ${result.totalCost.toFixed(2)}
+                  ₹{result.totalCost.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-slate-300">
                 <span>Baseline cost</span>
                 <span className="font-mono text-slate-100">
-                  ${result.baselineCost.toFixed(2)}
+                  ₹{result.baselineCost.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-800 pt-2 text-slate-300">

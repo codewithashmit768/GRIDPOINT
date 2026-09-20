@@ -63,11 +63,11 @@
                 axisLine={{ stroke: '#334155' }}
                 tickLine={{ stroke: '#334155' }}
                 tickFormatter={(value: number) =>
-                  `$${Math.round(value).toLocaleString()}`
+                  `₹${Math.round(value).toLocaleString()}`
                 }
                 width={64}
                 label={{
-                  value: 'Total Cost ($)',
+                  value: 'Total Cost (₹)',
                   angle: -90,
                   position: 'insideLeft',
                   offset: 8,
@@ -85,7 +85,7 @@
                   color: '#e2e8f0',
                 }}
                 formatter={(value) => [
-                  `$${Number(value).toFixed(2)}`,
+                  `₹${Number(value).toFixed(2)}`,
                   'Total cost',
                 ]}
                 labelFormatter={(label) => `k = ${label}`}

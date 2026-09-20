@@ -33,7 +33,7 @@ const FLEET_PROFILES: FleetOption[] = [
     icon: '⚡',
     fuelCost: 0.4,
     maxRadius: 15,
-    desc: 'Eco • $0.40/km • 15km cap',
+    desc: 'Eco • ₹0.40/km • 15km cap',
   },
   {
     id: 'diesel',
@@ -41,7 +41,7 @@ const FLEET_PROFILES: FleetOption[] = [
     icon: '🚐',
     fuelCost: 1.2,
     maxRadius: 35,
-    desc: 'Standard • $1.20/km • 35km cap',
+    desc: 'Standard • ₹1.20/km • 35km cap',
   },
   {
     id: 'freight',
@@ -49,7 +49,7 @@ const FLEET_PROFILES: FleetOption[] = [
     icon: '🚛',
     fuelCost: 2.5,
     maxRadius: 60,
-    desc: 'Heavy • $2.50/km • 60km cap',
+    desc: 'Heavy • ₹2.50/km • 60km cap',
   },
 ];
 
@@ -192,9 +192,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         {/* Fuel Cost multiplier */}
         <div>
           <div className="flex justify-between mb-1.5">
-            <label className="text-slate-300">Fuel Cost Per Km ($)</label>
+            <label className="text-slate-300">Fuel Cost Per Km (₹)</label>
             <span className="text-indigo-400 font-mono text-xs">
-              ${params.fuelCostPerKm.toFixed(2)}/km
+              ₹{params.fuelCostPerKm.toFixed(2)}/km
             </span>
           </div>
           <input

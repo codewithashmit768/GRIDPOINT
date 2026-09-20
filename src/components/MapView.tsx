@@ -36,13 +36,11 @@ const originalWarehouseIcon = new L.DivIcon({
   iconSize: [22, 22],
 });
 
-function formatUsd(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function formatRupees(value: number): string {
+  const negative = value < 0;
+  const [integer, fraction] = Math.abs(value).toFixed(2).split('.');
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}₹${grouped}.${fraction}`;
 }
 
 function orderWeightedCentroid(neighborhoods: Neighborhood[]): { lat: number; lng: number } | null {
@@ -95,9 +93,9 @@ export const MapView: React.FC<Props> = ({
   const showOriginal = viewMode === 'original';
 
   const badgeLabel = showOriginal
-    ? `Original Cost: ${formatUsd(originalCost)}`
+    ? `Original Cost: ${formatRupees(originalCost)}`
     : currentOptimizedCost != null
-      ? `Optimized Cost: ${formatUsd(currentOptimizedCost)}`
+      ? `Optimized Cost: ${formatRupees(currentOptimizedCost)}`
       : null;
 
   return (
